@@ -6,6 +6,10 @@ on:
     - cron: '30 3 * * 1,2,4,5'
   workflow_dispatch: # permite correrlo manualmente desde GitHub
 
+concurrency:
+  group: actualizar-miloto
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -33,4 +37,5 @@ jobs:
           git config user.email "bot@miloto.com"
           git add data.json
           git diff --staged --quiet || git commit -m "🎱 Actualizar resultados MiLoto $(date +'%Y-%m-%d')"
+          git pull --rebase origin main
           git push
