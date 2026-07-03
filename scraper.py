@@ -58,6 +58,13 @@ def scrape_page(page=1):
         print(f'  Error página {page}: {e}')
         return []
 
+    # --- DIAGNÓSTICO TEMPORAL ---
+    print(f'  [DEBUG] status={resp.status_code} bytes={len(resp.text)}')
+    print(f'  [DEBUG] primeros 500 caracteres:\n{resp.text[:500]}')
+    print(f'  [DEBUG] contiene "SORTEO"? {"SORTEO" in resp.text}')
+    print(f'  [DEBUG] contiene "HISTORICO" o "HISTÓRICO"? {"HISTORICO" in resp.text.upper()}')
+    # --- FIN DIAGNÓSTICO ---
+
     soup = BeautifulSoup(resp.text, 'html.parser')
     results = []
 
