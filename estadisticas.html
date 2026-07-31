@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiLoto · Estadísticas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0f1117; --surface:#171b26; --card:#1e2332; --card2:#252b3d;
+  --border:#2d3550; --border2:#3d4665;
+  --blue:#4f8ef7; --blue-dim:#2a4a8a;
+  --green:#34c77b; --green-dim:#1a5c3a;
+  --amber:#f5a623; --amber-dim:#7a4a00;
+  --red:#f05252; --red-dim:#6b1c1c;
+  --purple:#a78bfa; --purple-dim:#3d2a7a;
+  --cyan:#22d3ee; --cyan-dim:#0e4f5c;
+  --text-1:#f1f3f9; --text-2:#9ba3c0; --text-3:#5a6280;
+  --radius:10px; --radius-sm:6px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text-1);font-family:'Inter',sans-serif;font-size:14px;line-height:1.6;}
+button{cursor:pointer;font-family:inherit;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+.app{max-width:1000px;margin:0 auto;padding:0 16px 60px;}
+
+/* HEADER */
+.header{padding:28px 0 20px;border-bottom:1px solid var(--border);margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.header h1{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,4vw,32px);font-weight:700;color:var(--text-1);}
+.header h1 span{color:var(--blue);}
+.back-btn{background:var(--card);border:1px solid var(--border);color:var(--text-2);font-size:13px;padding:8px 14px;border-radius:var(--radius-sm);transition:all .2s;}
+.back-btn:hover{border-color:var(--blue);color:var(--blue);}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;align-items:center;}
+.filter-label{font-size:12px;color:var(--text-3);font-family:'JetBrains Mono',monospace;}
+.fchip{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;background:var(--card);border:1px solid var(--border);color:var(--text-2);transition:all .2s;}
+.fchip:hover{border-color:var(--border2);color:var(--text-1);}
+.fchip.sel{background:var(--blue-dim);border-color:var(--blue);color:var(--text-1);font-weight:600;}
+
+/* SECTION */
+.section{margin-bottom:32px;}
+.section-title{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr;} .grid-4{grid-template-columns:repeat(2,1fr);}}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;}
+.card-title{font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:14px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;}
+.card-accent{position:absolute;top:0;left:0;width:100%;height:2px;}
+
+/* KPI CARDS */
+.kpi{text-align:center;padding:20px 16px;}
+.kpi-val{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;line-height:1;margin-bottom:6px;}
+.kpi-lbl{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;}
+.kpi-sub{font-size:11px;color:var(--text-3);margin-top:4px;}
+
+/* CHART WRAPPER */
+.chart-wrap{position:relative;width:100%;height:240px;}
+.chart-wrap.tall{height:320px;}
+.chart-wrap.short{height:180px;}
+
+/* HEATMAP */
+.heatmap-grid{display:grid;grid-template-columns:repeat(13,1fr);gap:5px;margin-bottom:8px;}
+@media(max-width:600px){.heatmap-grid{grid-template-columns:repeat(8,1fr);}}
+.hm-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;cursor:default;transition:transform .15s;gap:1px;}
+.hm-cell:hover{transform:scale(1.15);z-index:2;position:relative;}
+.hm-num{font-size:9px;font-weight:700;}
+.hm-cnt{font-size:7px;opacity:.75;}
+
+/* NUMBER RANK TABLE */
+.num-rank{display:flex;flex-direction:column;gap:5px;}
+.nr-row{display:flex;align-items:center;gap:10px;}
+.nr-pos{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-3);width:20px;text-align:right;flex-shrink:0;}
+.nr-ball{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;flex-shrink:0;}
+.nr-bar-wrap{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.nr-bar-fill{height:100%;border-radius:3px;}
+.nr-count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2);min-width:32px;text-align:right;}
+.nr-pct{font-size:10px;color:var(--text-3);min-width:36px;text-align:right;}
+
+/* WINNER RECORDS */
+.winner-list{display:flex;flex-direction:column;gap:8px;}
+.winner-row{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.winner-date{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--amber);min-width:90px;}
+.winner-balls{display:flex;gap:4px;}
+.wb{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;background:var(--amber-dim);border:1px solid var(--amber);color:var(--amber);}
+.winner-badge{margin-left:auto;background:var(--amber);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+
+/* DAY PILLS */
+.day-pills{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.day-pill{padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text-2);transition:all .2s;}
+.day-pill.sel{background:var(--blue-dim);border-color:var(--blue);color:var(--text-1);}
+
+/* ABSENCE TABLE */
+.abs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;}
+.abs-cell{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center;}
+.abs-num{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;margin-bottom:2px;}
+.abs-days{font-size:10px;color:var(--text-3);}
+
+/* LOADING */
+.loading{display:flex;gap:8px;justify-content:center;padding:48px;}
+.ld{width:10px;height:10px;border-radius:50%;animation:bounce .8s ease-in-out infinite;}
+.ld:nth-child(1){background:var(--blue);}
+.ld:nth-child(2){background:var(--green);animation-delay:.15s;}
+.ld:nth-child(3){background:var(--amber);animation-delay:.3s;}
+.ld:nth-child(4){background:var(--red);animation-delay:.45s;}
+.ld:nth-child(5){background:var(--purple);animation-delay:.6s;}
+@keyframes bounce{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-8px);opacity:1}}
+
+footer{border-top:1px solid var(--border);padding:20px 0;text-align:center;font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;line-height:2;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>Mi<span>Loto</span> · Estadísticas</h1>
+    <a href="index.html"><button class="back-btn">← Volver al Generador</button></a>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <span class="filter-label">Período:</span>
+    <button class="fchip sel" onclick="setPeriod('all',this)">Todo el historial</button>
+    <button class="fchip" onclick="setPeriod('year',this)">Último año</button>
+    <button class="fchip" onclick="setPeriod('6m',this)">Últimos 6 meses</button>
+    <button class="fchip" onclick="setPeriod('3m',this)">Últimos 3 meses</button>
+    <button class="fchip" onclick="setPeriod('month',this)">Último mes</button>
+    <button class="fchip" onclick="setPeriod('week',this)">Última semana</button>
+  </div>
+
+  <div id="loading-state" class="loading">
+    <div class="ld"></div><div class="ld"></div><div class="ld"></div><div class="ld"></div><div class="ld"></div>
+  </div>
+
+  <div id="main-content" style="display:none;">
+
+    <!-- KPIs -->
+    <div class="section">
+      <div class="section-title">Resumen general</div>
+      <div class="grid-4" id="kpi-row"></div>
+    </div>
+
+    <!-- HEATMAP + TOP/BOTTOM -->
+    <div class="section">
+      <div class="section-title">Frecuencia de números</div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Mapa de calor — todos los números (1–39)</div>
+        <div class="heatmap-grid" id="heatmap"></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+          <span style="font-size:11px;color:var(--text-3);">Frío</span>
+          <div style="flex:1;height:5px;border-radius:3px;background:linear-gradient(90deg,#1e2332,#1a3a6a,#4f8ef7,#34c77b);max-width:200px;"></div>
+          <span style="font-size:11px;color:var(--text-3);">Caliente</span>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--red),var(--amber));"></div>
+          <div class="card-title">🔥 Top 10 — Más frecuentes</div>
+          <div class="num-rank" id="top10"></div>
+        </div>
+        <div class="card">
+          <div class="card-accent" style="background:linear-gradient(90deg,var(--purple),var(--cyan));"></div>
+          <div class="card-title">🧊 Top 10 — Menos frecuentes</div>
+          <div class="num-rank" id="bot10"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FREQUENCY CHART -->
+    <div class="section">
+      <div class="section-title">Distribución de frecuencias</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Frecuencia por número</div>
+          <div class="chart-wrap tall"><canvas id="chart-freq"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Distribución por rangos</div>
+          <div class="chart-wrap"><canvas id="chart-ranges"></canvas></div>
+          <div id="range-details" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRENDS BY DAY -->
+    <div class="section">
+      <div class="section-title">Tendencias por día de sorteo</div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Suma promedio de boleta por día</div>
+        <div class="chart-wrap"><canvas id="chart-sum-day"></canvas></div>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Top 5 números por día</div>
+        <div class="day-pills" id="day-pills-freq">
+          <button class="day-pill sel" onclick="setDayFreq('Monday',this)">Lunes</button>
+          <button class="day-pill" onclick="setDayFreq('Tuesday',this)">Martes</button>
+          <button class="day-pill" onclick="setDayFreq('Thursday',this)">Jueves</button>
+          <button class="day-pill" onclick="setDayFreq('Friday',this)">Viernes</button>
+        </div>
+        <div class="chart-wrap short"><canvas id="chart-day-freq"></canvas></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Sorteos por día de la semana</div>
+          <div class="chart-wrap"><canvas id="chart-day-count"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Números pares vs impares por día</div>
+          <div class="chart-wrap"><canvas id="chart-par-impar"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRENDS OVER TIME -->
+    <div class="section">
+      <div class="section-title">Tendencias temporales</div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Suma promedio mensual (tendencia)</div>
+        <div class="chart-wrap tall"><canvas id="chart-monthly-sum"></canvas></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Sorteos con números consecutivos</div>
+          <div class="chart-wrap"><canvas id="chart-consec"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Frecuencia del número 35 por mes</div>
+          <div class="chart-wrap"><canvas id="chart-n35"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABSENCE -->
+    <div class="section">
+      <div class="section-title">Ausencias — sorteos desde última aparición</div>
+      <div class="card">
+        <div class="card-title">Números ordenados por ausencia (mayor a menor)</div>
+        <div class="abs-grid" id="absence-grid"></div>
+      </div>
+    </div>
+
+    <!-- PAIRS -->
+    <div class="section">
+      <div class="section-title">Pares más frecuentes</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Top 10 pares que más salen juntos</div>
+          <div class="chart-wrap tall"><canvas id="chart-pairs"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Número más "magnético" (co-ocurrencias)</div>
+          <div class="chart-wrap tall"><canvas id="chart-magnetic"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WINNERS -->
+    <div class="section">
+      <div class="section-title">🏆 Sorteos con ganador (5 aciertos registrados)</div>
+      <div class="grid-3" id="winner-kpis" style="margin-bottom:16px;"></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">Línea de tiempo — sorteos con ganador</div>
+        <div class="chart-wrap"><canvas id="chart-winners-timeline"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Registro de sorteos con ganador conocido</div>
+        <div class="winner-list" id="winner-list"></div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app -->
+
+<footer>MiLoto Estadísticas · carloshb31.github.io/miloto · Datos: baloto.com</footer>
+
+<script>
+// ============================================================
+// GLOBAL DATA
+// ============================================================
+let ALL_DB = [];
+let DB     = [];   // filtered
+let period = 'all';
+let dayFreqSelected = 'Monday';
+
+const CHART_DEFAULTS = {
+  color: '#f1f3f9',
+  gridColor: 'rgba(45,53,80,0.8)',
+  font: "'JetBrains Mono', monospace",
+};
+
+Chart.defaults.color = CHART_DEFAULTS.color;
+Chart.defaults.font.family = 'Inter, sans-serif';
+
+// Colors
+const PALETTE = ['#4f8ef7','#34c77b','#f5a623','#f05252','#a78bfa','#22d3ee','#fb923c','#e879f9'];
+const DAY_COLORS = { Monday:'#4f8ef7', Tuesday:'#34c77b', Thursday:'#f5a623', Friday:'#f05252' };
+const DAY_NAMES  = { Monday:'Lunes', Tuesday:'Martes', Thursday:'Jueves', Friday:'Viernes' };
+
+// ============================================================
+// KNOWN WINNERS — sorteos donde alguien acertó los 5 números
+// (fuente: baloto.com noticias / prensa)
+// ============================================================
+const KNOWN_WINNERS = [
+  // Agrega aquí fechas confirmadas con ganador
+  // { fecha: '2024-03-15', premio: '$2.500M', ciudad: 'Bogotá' },
+];
+
+// ============================================================
+// LOAD DATA
+// ============================================================
+async function loadData() {
+  try {
+    const r = await fetch(`data.json?t=${Date.now()}`);
+    const json = await r.json();
+    const dias = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    ALL_DB = (json.sorteos||[]).map(s=>({
+      ...s,
+      dia: dias[new Date(s.fecha+'T12:00:00').getDay()]
+    }));
+    applyFilter();
+  } catch(e) {
+    document.getElementById('loading-state').innerHTML =
+      `<div style="text-align:center;color:#f05252;padding:40px;">Error cargando datos: ${e.message}<br><br><a href="index.html">← Volver</a></div>`;
+  }
+}
+
+function setPeriod(p, el) {
+  period = p;
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('sel'));
+  if(el) el.classList.add('sel');
+  applyFilter();
+}
+
+function applyFilter() {
+  const now = new Date();
+  let cutoff = null;
+  if(period==='week')  cutoff = new Date(now.getTime() - 7*24*60*60*1000);
+  if(period==='year')  cutoff = new Date(now.getFullYear()-1, now.getMonth(), now.getDate());
+  if(period==='6m')    cutoff = new Date(now.setMonth(now.getMonth()-6));
+  if(period==='3m')    cutoff = new Date(now.setMonth(now.getMonth()-3));
+  if(period==='month') cutoff = new Date(now.setMonth(now.getMonth()-1));
+
+  DB = cutoff
+    ? ALL_DB.filter(s => new Date(s.fecha) >= cutoff)
+    : [...ALL_DB];
+
+  render();
+}
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+function render() {
+  destroyCharts();
+  document.getElementById('loading-state').style.display='none';
+  document.getElementById('main-content').style.display='block';
+
+  renderKPIs();
+  renderHeatmap();
+  renderTop10();
+  renderFreqChart();
+  renderRangesChart();
+  renderSumByDay();
+  renderDayFreqChart();
+  renderDayCount();
+  renderParImpar();
+  renderMonthlySum();
+  renderConsec();
+  renderN35();
+  renderAbsence();
+  renderPairs();
+  renderMagnetic();
+  renderWinners();
+}
+
+let charts = {};
+function destroyCharts() {
+  Object.values(charts).forEach(c=>{ try{c.destroy();}catch(e){} });
+  charts = {};
+}
+
+// ============================================================
+// KPIs
+// ============================================================
+function renderKPIs() {
+  const sums = DB.map(s=>s.nums.reduce((a,b)=>a+b,0));
+  const avg  = sums.length ? Math.round(sums.reduce((a,b)=>a+b,0)/sums.length*10)/10 : 0;
+  const consec = DB.filter(s=>s.nums.some((_,i)=>i>0&&s.nums[i]-s.nums[i-1]===1)).length;
+  const pares  = DB.filter(s=>s.nums.filter(n=>n%2===0).length>=3).length;
+  const winners= KNOWN_WINNERS.filter(w=>DB.find(s=>s.fecha===w.fecha)).length;
+
+  const kpis = [
+    { val: DB.length,                lbl:'Sorteos analizados', sub:'en el período', col:'var(--blue)' },
+    { val: avg,                      lbl:'Suma promedio',       sub:'por boleta',    col:'var(--green)' },
+    { val: `${Math.round(consec/DB.length*100)}%`, lbl:'Con consecutivos', sub:`${consec} sorteos`, col:'var(--amber)' },
+    { val: winners || '—',           lbl:'Ganadores conocidos', sub:'5 aciertos',   col:'var(--amber)' },
+  ];
+
+  document.getElementById('kpi-row').innerHTML = kpis.map(k=>`
+    <div class="card kpi">
+      <div class="card-accent" style="background:${k.col}44;"></div>
+      <div class="kpi-val" style="color:${k.col}">${k.val}</div>
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+function renderHeatmap() {
+  const gf = getGlobalFreq();
+  const vals = Object.values(gf);
+  const mx = Math.max(...vals)||1, mn = Math.min(...vals)||0;
+  const hm = document.getElementById('heatmap'); hm.innerHTML='';
+  for(let n=1;n<=39;n++){
+    const f=gf[n]||0, t=(f-mn)/(mx-mn||1);
+    const cell=document.createElement('div');
+    cell.className='hm-cell';
+    // Color: dark blue → bright blue → green
+    const r=Math.round(20+t*14), g=Math.round(35+t*170), b=Math.round(50+t*100);
+    cell.style.cssText=`background:rgb(${r},${g},${b});color:${t>0.45?'#fff':'#9ba3c0'};`;
+    cell.title=`Nº ${n}: ${f} apariciones`;
+    cell.innerHTML=`<span class="hm-num">${String(n).padStart(2,'0')}</span><span class="hm-cnt">${f}×</span>`;
+    hm.appendChild(cell);
+  }
+}
+
+// ============================================================
+// TOP / BOTTOM 10
+// ============================================================
+function renderTop10() {
+  const gf  = getGlobalFreq();
+  const sorted = Object.entries(gf).map(([n,c])=>({n:+n,c})).sort((a,b)=>b.c-a.c);
+  const total  = DB.length * 5;
+  const maxC   = sorted[0]?.c||1;
+
+  const buildRow=(n,c,pos,col,bgCol)=>`
+    <div class="nr-row">
+      <div class="nr-pos">${pos}</div>
+      <div class="nr-ball" style="background:${bgCol};border:1.5px solid ${col};color:${col};">${String(n).padStart(2,'0')}</div>
+      <div class="nr-bar-wrap"><div class="nr-bar-fill" style="width:${Math.round(c/maxC*100)}%;background:${col};"></div></div>
+      <div class="nr-count">${c}</div>
+      <div class="nr-pct">${Math.round(c/total*100*10)/10}%</div>
+    </div>`;
+
+  document.getElementById('top10').innerHTML=sorted.slice(0,10).map((x,i)=>buildRow(x.n,x.c,i+1,'var(--amber)','var(--amber-dim)')).join('');
+  document.getElementById('bot10').innerHTML=[...sorted].reverse().slice(0,10).map((x,i)=>buildRow(x.n,x.c,i+1,'var(--purple)','var(--purple-dim)')).join('');
+}
+
+// ============================================================
+// FREQ CHART (bar — all numbers)
+// ============================================================
+function renderFreqChart() {
+  const gf = getGlobalFreq();
+  const labels=[], data=[], colors=[];
+  for(let n=1;n<=39;n++){
+    labels.push(String(n).padStart(2,'0'));
+    data.push(gf[n]||0);
+    const t=(gf[n]||0)/Math.max(...Object.values(gf));
+    const r=Math.round(79+t*176-t*55);
+    const g=Math.round(142+t*57);
+    const b=Math.round(247-t*170);
+    colors.push(`rgb(${r},${g},${b})`);
+  }
+  charts.freq=new Chart(document.getElementById('chart-freq'),{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:3,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:t=>`Número ${t[0].label}`,label:c=>`Apariciones: ${c.raw}`}}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:9},color:'#5a6280'}},y:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:10}}}}}
+  });
+}
+
+// ============================================================
+// RANGES PIE
+// ============================================================
+function renderRangesChart() {
+  const gf=getGlobalFreq();
+  const ranges={
+    '1–10':  Object.entries(gf).filter(([n])=>n<=10).reduce((s,[,v])=>s+v,0),
+    '11–20': Object.entries(gf).filter(([n])=>n>=11&&n<=20).reduce((s,[,v])=>s+v,0),
+    '21–30': Object.entries(gf).filter(([n])=>n>=21&&n<=30).reduce((s,[,v])=>s+v,0),
+    '31–39': Object.entries(gf).filter(([n])=>n>=31).reduce((s,[,v])=>s+v,0),
+  };
+  const total=Object.values(ranges).reduce((a,b)=>a+b,0);
+  charts.ranges=new Chart(document.getElementById('chart-ranges'),{
+    type:'doughnut',
+    data:{labels:Object.keys(ranges),datasets:[{data:Object.values(ranges),backgroundColor:['#4f8ef7','#34c77b','#f5a623','#f05252'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:14,font:{size:11}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} (${Math.round(c.raw/total*100)}%)`}}}}
+  });
+  document.getElementById('range-details').innerHTML=Object.entries(ranges).map(([r,c],i)=>`
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:10px;height:10px;border-radius:2px;background:${['#4f8ef7','#34c77b','#f5a623','#f05252'][i]};flex-shrink:0;"></div>
+      <span style="font-size:12px;color:var(--text-2);">${r}</span>
+      <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${Math.round(c/total*100)}%;height:100%;background:${['#4f8ef7','#34c77b','#f5a623','#f05252'][i]};border-radius:2px;"></div></div>
+      <span style="font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;">${Math.round(c/total*100)}%</span>
+    </div>`).join('');
+}
+
+// ============================================================
+// SUM BY DAY
+// ============================================================
+function renderSumByDay() {
+  const days=['Monday','Tuesday','Thursday','Friday'];
+  const labels=days.map(d=>DAY_NAMES[d]);
+  const avgs=days.map(d=>{
+    const rows=DB.filter(s=>s.dia===d);
+    if(!rows.length) return 0;
+    return Math.round(rows.reduce((a,s)=>a+s.nums.reduce((x,y)=>x+y,0),0)/rows.length*10)/10;
+  });
+  const stddevs=days.map(d=>{
+    const rows=DB.filter(s=>s.dia===d);
+    if(rows.length<2) return 0;
+    const avg=rows.reduce((a,s)=>a+s.nums.reduce((x,y)=>x+y,0),0)/rows.length;
+    return Math.round(Math.sqrt(rows.reduce((a,s)=>a+Math.pow(s.nums.reduce((x,y)=>x+y,0)-avg,2),0)/rows.length)*10)/10;
+  });
+  charts.sumDay=new Chart(document.getElementById('chart-sum-day'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Suma promedio',data:avgs,backgroundColor:days.map(d=>DAY_COLORS[d]+'aa'),borderColor:days.map(d=>DAY_COLORS[d]),borderWidth:2,borderRadius:5},
+      {label:'Desv. estándar',data:stddevs,type:'line',borderColor:'#a78bfa',backgroundColor:'transparent',pointBackgroundColor:'#a78bfa',tension:.4,borderDash:[4,4]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},padding:16}}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor}},y:{grid:{color:CHART_DEFAULTS.gridColor},suggestedMin:80,suggestedMax:120}}}
+  });
+}
+
+// ============================================================
+// DAY FREQ CHART
+// ============================================================
+function setDayFreq(day, el) {
+  dayFreqSelected=day;
+  document.querySelectorAll('.day-pill').forEach(x=>x.classList.remove('sel'));
+  if(el) el.classList.add('sel');
+  if(charts.dayFreq){charts.dayFreq.destroy();delete charts.dayFreq;}
+  renderDayFreqChart();
+}
+
+function renderDayFreqChart() {
+  const rows=DB.filter(s=>s.dia===dayFreqSelected);
+  const freq={};
+  for(let n=1;n<=39;n++) freq[n]=0;
+  rows.forEach(s=>s.nums.forEach(n=>freq[n]++));
+  const sorted=Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+  const labels=sorted.map(([n])=>String(+n).padStart(2,'0'));
+  const data=sorted.map(([,c])=>c);
+  const col=DAY_COLORS[dayFreqSelected]||'#4f8ef7';
+  charts.dayFreq=new Chart(document.getElementById('chart-day-freq'),{
+    type:'bar',
+    data:{labels,datasets:[{label:DAY_NAMES[dayFreqSelected],data,backgroundColor:col+'88',borderColor:col,borderWidth:1.5,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:8}}},y:{grid:{color:CHART_DEFAULTS.gridColor}}}}
+  });
+}
+
+// ============================================================
+// DAY COUNT
+// ============================================================
+function renderDayCount() {
+  const days=['Monday','Tuesday','Thursday','Friday'];
+  const counts=days.map(d=>DB.filter(s=>s.dia===d).length);
+  charts.dayCount=new Chart(document.getElementById('chart-day-count'),{
+    type:'bar',
+    data:{labels:days.map(d=>DAY_NAMES[d]),datasets:[{data:counts,backgroundColor:days.map(d=>DAY_COLORS[d]+'88'),borderColor:days.map(d=>DAY_COLORS[d]),borderWidth:2,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor}},y:{grid:{color:CHART_DEFAULTS.gridColor},beginAtZero:true}}}
+  });
+}
+
+// ============================================================
+// PARES vs IMPARES by day
+// ============================================================
+function renderParImpar() {
+  const days=['Monday','Tuesday','Thursday','Friday'];
+  const pares=days.map(d=>{ const r=DB.filter(s=>s.dia===d); return r.length?Math.round(r.reduce((a,s)=>a+s.nums.filter(n=>n%2===0).length,0)/r.length*10)/10:0; });
+  const impares=days.map((_,i)=>Math.round((5-pares[i])*10)/10);
+  charts.parImpar=new Chart(document.getElementById('chart-par-impar'),{
+    type:'bar',
+    data:{labels:days.map(d=>DAY_NAMES[d]),datasets:[
+      {label:'Pares (prom)',data:pares,backgroundColor:'#4f8ef788',borderColor:'#4f8ef7',borderWidth:2,borderRadius:3},
+      {label:'Impares (prom)',data:impares,backgroundColor:'#f5a62388',borderColor:'#f5a623',borderWidth:2,borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},padding:12}}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor}},y:{grid:{color:CHART_DEFAULTS.gridColor},max:5,beginAtZero:true}}}
+  });
+}
+
+// ============================================================
+// MONTHLY SUM TREND
+// ============================================================
+function renderMonthlySum() {
+  const byMonth={};
+  DB.forEach(s=>{
+    const ym=s.fecha.slice(0,7);
+    if(!byMonth[ym]) byMonth[ym]=[];
+    byMonth[ym].push(s.nums.reduce((a,b)=>a+b,0));
+  });
+  const months=Object.keys(byMonth).sort();
+  const avgs=months.map(m=>Math.round(byMonth[m].reduce((a,b)=>a+b,0)/byMonth[m].length*10)/10);
+  // Simple moving average (3 months)
+  const sma=avgs.map((_,i)=>i<2?null:Math.round(avgs.slice(i-2,i+1).reduce((a,b)=>a+b,0)/3*10)/10);
+
+  charts.monthlySum=new Chart(document.getElementById('chart-monthly-sum'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {label:'Suma promedio mensual',data:avgs,borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,0.08)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#4f8ef7'},
+      {label:'Media móvil (3m)',data:sma,borderColor:'#34c77b',backgroundColor:'transparent',borderDash:[5,4],tension:.4,pointRadius:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},padding:16}}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:9},maxRotation:45}},y:{grid:{color:CHART_DEFAULTS.gridColor},suggestedMin:70,suggestedMax:130}}}
+  });
+}
+
+// ============================================================
+// CONSECUTIVE TREND
+// ============================================================
+function renderConsec() {
+  const byMonth={};
+  DB.forEach(s=>{
+    const ym=s.fecha.slice(0,7);
+    if(!byMonth[ym]) byMonth[ym]={total:0,consec:0};
+    byMonth[ym].total++;
+    if(s.nums.some((_,i)=>i>0&&s.nums[i]-s.nums[i-1]===1)) byMonth[ym].consec++;
+  });
+  const months=Object.keys(byMonth).sort().slice(-18);
+  const pcts=months.map(m=>Math.round(byMonth[m].consec/byMonth[m].total*100));
+  charts.consec=new Chart(document.getElementById('chart-consec'),{
+    type:'line',
+    data:{labels:months,datasets:[{label:'% con consecutivos',data:pcts,borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,.08)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#f5a623'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:9},maxRotation:45}},y:{grid:{color:CHART_DEFAULTS.gridColor},min:0,max:100,ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+// ============================================================
+// N35 TREND
+// ============================================================
+function renderN35() {
+  const byMonth={};
+  DB.forEach(s=>{
+    const ym=s.fecha.slice(0,7);
+    if(!byMonth[ym]) byMonth[ym]={total:0,has35:0};
+    byMonth[ym].total++;
+    if(s.nums.includes(35)) byMonth[ym].has35++;
+  });
+  const months=Object.keys(byMonth).sort().slice(-18);
+  const pcts=months.map(m=>Math.round(byMonth[m].has35/byMonth[m].total*100));
+  charts.n35=new Chart(document.getElementById('chart-n35'),{
+    type:'bar',
+    data:{labels:months,datasets:[{label:'% sorteos con el 35',data:pcts,backgroundColor:'#a78bfa88',borderColor:'#a78bfa',borderWidth:1.5,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:9},maxRotation:45}},y:{grid:{color:CHART_DEFAULTS.gridColor},min:0,ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+// ============================================================
+// ABSENCE
+// ============================================================
+function renderAbsence() {
+  const absence={};
+  for(let n=1;n<=39;n++) absence[n]=0;
+  const found=new Set();
+  for(let i=DB.length-1;i>=0;i--){
+    DB[i].nums.forEach(n=>{ if(!found.has(n)){absence[n]=DB.length-1-i;found.add(n);} });
+    if(found.size===39) break;
+  }
+  const sorted=Object.entries(absence).sort((a,b)=>b[1]-a[1]);
+  const maxAbs=sorted[0]?.[1]||1;
+  document.getElementById('absence-grid').innerHTML=sorted.map(([n,a])=>{
+    const t=a/maxAbs;
+    const col=t>0.6?'var(--red)':t>0.3?'var(--amber)':'var(--text-2)';
+    return `<div class="abs-cell" style="border-color:${t>0.5?col:'var(--border)'}">
+      <div class="abs-num" style="color:${col}">${String(+n).padStart(2,'0')}</div>
+      <div class="abs-days">${a} sorteos</div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// PAIRS
+// ============================================================
+function renderPairs() {
+  const pairs={};
+  DB.forEach(s=>{
+    const ns=s.nums;
+    for(let i=0;i<ns.length;i++) for(let j=i+1;j<ns.length;j++){
+      const k=`${ns[i]}-${ns[j]}`; pairs[k]=(pairs[k]||0)+1;
+    }
+  });
+  const top10=Object.entries(pairs).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  charts.pairs=new Chart(document.getElementById('chart-pairs'),{
+    type:'bar',
+    data:{labels:top10.map(([k])=>k),datasets:[{data:top10.map(([,v])=>v),backgroundColor:'#4f8ef788',borderColor:'#4f8ef7',borderWidth:1.5,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor}},y:{grid:{display:false},ticks:{font:{size:10,family:'JetBrains Mono, monospace'}}}}}
+  });
+}
+
+// ============================================================
+// MAGNETIC NUMBER
+// ============================================================
+function renderMagnetic() {
+  const cooc={};
+  for(let n=1;n<=39;n++) cooc[n]=0;
+  DB.forEach(s=>{
+    s.nums.forEach(n=>{
+      s.nums.forEach(m=>{ if(m!==n) cooc[n]++; });
+    });
+  });
+  const sorted=Object.entries(cooc).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  charts.magnetic=new Chart(document.getElementById('chart-magnetic'),{
+    type:'bar',
+    data:{labels:sorted.map(([n])=>String(+n).padStart(2,'0')),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map((_,i)=>`hsl(${200+i*10},80%,${60-i*2}%)`),borderWidth:0,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Co-ocurrencias: ${c.raw}`}}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:9,family:'JetBrains Mono, monospace'}}},y:{grid:{color:CHART_DEFAULTS.gridColor}}}}
+  });
+}
+
+// ============================================================
+// WINNERS
+// ============================================================
+function renderWinners() {
+  const filtered=KNOWN_WINNERS.filter(w=>DB.find(s=>s.fecha===w.fecha));
+
+  // KPIs
+  const byDay={Lunes:0,Martes:0,Jueves:0,Viernes:0};
+  filtered.forEach(w=>{
+    const s=DB.find(x=>x.fecha===w.fecha);
+    if(s) byDay[{Monday:'Lunes',Tuesday:'Martes',Thursday:'Jueves',Friday:'Viernes'}[s.dia]||s.dia]++;
+  });
+  const bestDay=Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+
+  document.getElementById('winner-kpis').innerHTML=`
+    <div class="card kpi"><div class="card-accent" style="background:var(--amber)44;"></div>
+      <div class="kpi-val" style="color:var(--amber)">${filtered.length||'—'}</div>
+      <div class="kpi-lbl">Ganadores registrados</div><div class="kpi-sub">en el período</div></div>
+    <div class="card kpi"><div class="card-accent" style="background:var(--green)44;"></div>
+      <div class="kpi-val" style="color:var(--green)">${filtered.length?Math.round(DB.length/filtered.length)+'':'—'}</div>
+      <div class="kpi-lbl">Sorteos por ganador</div><div class="kpi-sub">promedio histórico</div></div>
+    <div class="card kpi"><div class="card-accent" style="background:var(--purple)44;"></div>
+      <div class="kpi-val" style="color:var(--purple)">${bestDay}</div>
+      <div class="kpi-lbl">Día más ganador</div><div class="kpi-sub">por registros</div></div>`;
+
+  // Timeline chart
+  const byMonth={};
+  DB.forEach(s=>{ const ym=s.fecha.slice(0,7); byMonth[ym]=(byMonth[ym]||0); });
+  filtered.forEach(w=>{ const s=DB.find(x=>x.fecha===w.fecha); if(s){ const ym=s.fecha.slice(0,7); byMonth[ym]=(byMonth[ym]||0)+1; }});
+  const months=Object.keys(byMonth).sort();
+  charts.winnersTimeline=new Chart(document.getElementById('chart-winners-timeline'),{
+    type:'bar',
+    data:{labels:months,datasets:[{label:'Ganadores',data:months.map(m=>byMonth[m]||0),backgroundColor:'#f5a62388',borderColor:'#f5a623',borderWidth:1.5,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:CHART_DEFAULTS.gridColor},ticks:{font:{size:9},maxRotation:45}},y:{grid:{color:CHART_DEFAULTS.gridColor},beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+
+  // Winner list
+  const wl=document.getElementById('winner-list');
+  if(filtered.length===0){
+    wl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
+      No hay ganadores registrados en este período.<br><br>
+      <span style="font-size:11px;color:var(--text-3);">Puedes agregar ganadores conocidos editando el array KNOWN_WINNERS en el código.</span>
+    </div>`;
+  } else {
+    wl.innerHTML=filtered.map(w=>{
+      const s=DB.find(x=>x.fecha===w.fecha);
+      return `<div class="winner-row">
+        <div class="winner-date">🏆 ${w.fecha}</div>
+        <div class="winner-balls">${s?s.nums.map(n=>`<div class="wb">${String(n).padStart(2,'0')}</div>`).join(''):'—'}</div>
+        ${w.premio?`<div style="font-size:12px;color:var(--green);font-family:'JetBrains Mono',monospace;">${w.premio}</div>`:''}
+        ${w.ciudad?`<div style="font-size:11px;color:var(--text-3);">${w.ciudad}</div>`:''}
+        <div class="winner-badge">GANADOR</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function getGlobalFreq(){
+  const gf={};
+  for(let n=1;n<=39;n++) gf[n]=0;
+  DB.forEach(s=>s.nums.forEach(n=>gf[n]++));
+  return gf;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+</script>
+</body>
+</html>
